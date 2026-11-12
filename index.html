@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Know your Chinese · 你懂中文吗</title>
+<meta name="description" content="Know your Chinese (你懂中文吗) by AwesomeKam of the AwesomePlanet. Learn Mandarin and PRC studies in 19 modules with quizzes, daily review, ear training, games and badges. Score 8 out of 10 on each quiz to open the next module.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#1e6a59">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/game.css">
+<script>
+/* Startup safety net: remembers the first script that fails, so the page can say what went wrong instead of "Loading…" forever. */
+window.__cpErr = '';
+window.addEventListener('error', function (e) {
+  if (window.__cpErr) return;
+  var t = e.target;
+  if (t && (t.src || t.href) && t !== window) window.__cpErr = 'The file ' + String(t.src || t.href).split('/').slice(-2).join('/') + ' did not load.';
+  else window.__cpErr = (e.message || 'Unknown error') + (e.filename ? ' (' + String(e.filename).split('/').pop() + ':' + e.lineno + ')' : '');
+}, true);
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar" id="bar">
+  <button class="iconbtn" id="btnHome" aria-label="All modules" title="All modules">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="bar-title" id="barTitle">Know your Chinese</div>
+  <button class="iconbtn" id="btnTones" aria-label="Tone guide" title="Tone guide">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 15 8 15M10 16 15 8M17 6 21 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <button class="iconbtn" id="btnSound" aria-label="Pause all sound" title="Pause all sound">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path id="sndIcon" d="M8 5v14M16 5v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="hud" id="hud" role="group" aria-label="Your progress">
+    <span class="hud-l" id="hudStreak">🔥 0 days</span>
+    <button type="button" class="hud-b" id="hudBadges" data-g="badges">🏅 0/17 badges</button>
+    <span class="hud-r" id="hudXP">⭐ 0 XP</span>
+  </div>
+</header>
+<main id="main" tabindex="-1"><p class="loading">Loading…</p></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sheet-wrap" id="sheetWrap" hidden>
+  <div class="scrim" id="scrim"></div>
+  <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <button class="sheet-close" id="sheetClose" aria-label="Close">×</button>
+    <div id="sheetBody"></div>
+  </section>
+</div>
+<noscript><p style="padding:1rem">Know your Chinese needs JavaScript to run.</p></noscript>
+<script src="js/config.js"></script>
+<script src="js/course.js"></script>
+<script src="js/course-extra.js"></script>
+<script src="js/explanations.js"></script>
+<script src="js/pinyin.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/game.js"></script>
+<script src="js/practice.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  setTimeout(function () {
+    var m = document.getElementById('main'); if (!m || !m.querySelector('.loading')) return;
+    m.innerHTML = '<section class="card note" role="alert" style="padding:1rem;border:2px solid #b3261e;border-radius:14px;margin:1rem 0">' +
+      '<h2 style="margin-top:0">The app could not start</h2>' +
+      '<p>' + String(window.__cpErr || 'A file is missing or an old copy is stored on this device.').replace(/[<>&]/g, '') + '</p>' +
+      '<p>Try <b>Reload with fresh files</b>. If it happens again, make sure the whole folder (index.html, css, js, sounds, img, icons) was uploaded together.</p>' +
+      '<p><button type="button" id="cpFix" class="btn red" style="width:100%">Reload with fresh files</button></p></section>';
+    var b = document.getElementById('cpFix');
+    if (b) b.onclick = function () {
+      var jobs = [];
+      try { if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (r) { return Promise.all(r.map(function (x) { return x.unregister(); })); })); } catch (e) {}
+      try { if (window.caches) jobs.push(caches.keys().then(function (k) { return Promise.all(k.map(function (x) { return caches.delete(x); })); })); } catch (e) {}
+      Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
+    };
+  }, 6000);
+})();
+</script>
+</body>
+</html>
