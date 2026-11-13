@@ -26,7 +26,7 @@
 
   /* ---------- saved state ---------- */
   var G = { xp: 0, streak: 0, best: 0, lastDay: '', day: '', dayXP: 0, goalDay: '', goal: CFG.DAILY_GOAL_XP || 50,
-    srs: {}, badges: {}, mig: 0, prefs: { text: 0, contrast: 0, motion: 0 }, stats: { quizzes: 0, perfect: 0, reviews: 0, speedBest: 0, matchBest: 0, built: 0, listenOK: 0, toneOK: 0 } };
+    srs: {}, badges: {}, mig: 0, prefs: { text: 0, contrast: 0, motion: 0, read: 0, keys: 1, vib: 1 }, stats: { quizzes: 0, perfect: 0, reviews: 0, speedBest: 0, matchBest: 0, built: 0, listenOK: 0, toneOK: 0 } };
   function load() {
     try {
       var j = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -41,6 +41,7 @@
     b.innerHTML = '<span aria-hidden="true">🏅</span> ' + n + '/' + BADGES.length + ' badges'; b.setAttribute('aria-label', 'Badges: ' + n + ' of ' + BADGES.length + ' earned. Open my badges');
     c.innerHTML = '<span aria-hidden="true">⭐</span> ' + G.xp + ' XP'; c.title = 'Level ' + lv; c.setAttribute('aria-label', G.xp + ' XP, level ' + lv);
   }
+  function statusText() { rollDay(); var st = liveStreak(), n = earnedCount(); return 'Streak: ' + st + (st === 1 ? ' day' : ' days') + '. ' + G.xp + ' XP, level ' + E.levelOf(G.xp) + '. ' + n + ' of ' + BADGES.length + ' badges.'; }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(G)); } catch (e) {} try { hud(); } catch (e) {} }
   load();
 
@@ -499,6 +500,7 @@
       '<fieldset class="goalset"><legend>Daily goal</legend>' + [30, 50, 100].map(function (n) { return '<label><input type="radio" name="goal" value="' + n + '"' + (G.goal === n ? ' checked' : '') + '> ' + n + ' XP' + (n === 30 ? ' (relaxed)' : n === 50 ? ' (steady)' : ' (keen)') + '</label>'; }).join('') + '</fieldset>' +
       '<fieldset class="goalset"><legend>Text size</legend>' + radios('ptext', ['Normal', 'Large', 'Extra large'], G.prefs.text) + '</fieldset>' +
       '<fieldset class="goalset"><legend>Display</legend><label><input type="checkbox" id="pContrast"' + (G.prefs.contrast ? ' checked' : '') + '> High contrast colours</label><label><input type="checkbox" id="pMotion"' + (G.prefs.motion ? ' checked' : '') + '> Reduce motion and confetti</label></fieldset>' +
+      '<fieldset class="goalset"><legend>Listening and keys</legend><label><input type="checkbox" id="pRead"' + (G.prefs.read ? ' checked' : '') + '> Read pages, questions and answers aloud automatically</label><label><input type="checkbox" id="pKeys"' + (G.prefs.keys !== 0 ? ' checked' : '') + '> One-key shortcuts (H, S, N, W and so on)</label><label><input type="checkbox" id="pVib"' + (G.prefs.vib !== 0 ? ' checked' : '') + '> Vibrate with the tone pitch (phones)</label><p class="fine">If your screen reader already reads everything, leave automatic reading off. You can always press L to read the current page or question. Alt+Shift with a letter always works, even when your screen reader keeps single letters for itself.</p><div class="line"><button type="button" class="btn ghost sm" data-act="keys">See all keyboard shortcuts</button></div></fieldset>' +
       '<div class="keybox"><label for="gKey"><b>Gemini API key</b> (optional)</label><p class="fine">Turns on natural Mandarin audio and “Ask the tutor”. ' + (proxy ? 'This site already uses a secure server, so you do not need a key.' : 'Paste your own key. It is saved only on this device and is never part of the app files.') + '</p>' +
       '<input id="gKey" type="password" autocomplete="off" spellcheck="false" value="' + esc(key) + '"' + (proxy ? ' disabled' : '') + '></div>' +
       '<div class="row"><div class="line"><button class="btn" data-g="savesettings">Save</button></div><div class="line"><button class="btn ghost" data-g="clearkey">Remove saved key</button></div></div>' +
@@ -534,6 +536,7 @@
       var r = document.querySelector('input[name="goal"]:checked'); if (r) G.goal = +r.value;
       var pt = document.querySelector('input[name="ptext"]:checked'); if (pt) G.prefs.text = +pt.value;
       var pc = document.getElementById('pContrast'), pm = document.getElementById('pMotion'); if (pc) G.prefs.contrast = pc.checked ? 1 : 0; if (pm) G.prefs.motion = pm.checked ? 1 : 0; applyPrefs();
+      var pr = document.getElementById('pRead'), pk = document.getElementById('pKeys'), pv = document.getElementById('pVib'); if (pr) G.prefs.read = pr.checked ? 1 : 0; if (pk) G.prefs.keys = pk.checked ? 1 : 0; if (pv) G.prefs.vib = pv.checked ? 1 : 0;
       var k = document.getElementById('gKey'); if (k && !k.disabled) { try { if (k.value.trim()) localStorage.setItem('cp.geminiKey', k.value.trim()); else localStorage.removeItem('cp.geminiKey'); } catch (e) {} }
       save(); A_.closeSheet(); A_.toast('Settings saved.'); if (!location.hash || location.hash === '#/' || location.hash === '#') A_.go('#/'); return true;
     }
@@ -587,6 +590,8 @@
       return shuffle(out).slice(0, len);
     },
     reset: function () { var s = G.goal; G = { xp: 0, streak: 0, best: 0, lastDay: '', day: '', dayXP: 0, goalDay: '', goal: s, srs: {}, badges: {}, mig: 1, prefs: G.prefs, stats: { quizzes: 0, perfect: 0, reviews: 0, speedBest: 0, matchBest: 0, built: 0, listenOK: 0, toneOK: 0 } }; NEWQ = []; SESS = null; stopTimers(); save(); },
+    pref: function (k) { return G.prefs[k]; },
+    statusText: statusText,
     hud: function () { try { hud(); } catch (e) {} },
     spin: spinCoin,
     state: function () { return G; },

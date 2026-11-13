@@ -287,3 +287,6 @@ html[data-contrast="high"] .addr .a1,html[data-contrast="high"] .addr .a2,html[d
   body{font-size:18px}
 }
 @media (hover:hover){.tile.open:hover{transform:translateY(-1px)}}
+
+kbd{font:700 .85em var(--sans,inherit);padding:.1em .45em;border:1.5px solid var(--line);border-bottom-width:3px;border-radius:6px;background:var(--card,#fff);white-space:nowrap}
+.keys{width:100%;border-collapse:collapse}.keys th,.keys td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}.keys th{width:34%}

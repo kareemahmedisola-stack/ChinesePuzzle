@@ -230,7 +230,66 @@
       });
     } catch (e) {}
   }
+
+  /* ---------- hear the tone shapes: each tone as a gliding pitch (and a vibration pattern on phones) ---------- */
+  var SHAPES = {
+    1: { d: 0.85, p: [[0, 400], [1, 400]] },                       // high and level
+    2: { d: 0.7,  p: [[0, 290], [1, 440]] },                       // rising
+    3: { d: 0.95, p: [[0, 300], [0.45, 200], [1, 360]] },          // dips low, then comes up
+    4: { d: 0.6,  p: [[0, 470], [1, 220]] },                       // falling
+    5: { d: 0.28, p: [[0, 300], [1, 285]], soft: true }            // short and light
+  };
+  var BUZZ = { 1: [600], 2: [60, 60, 110, 60, 180, 60, 260], 3: [200, 60, 110, 60, 60, 60, 110, 60, 200], 4: [260, 60, 180, 60, 110, 60, 60], 5: [70] };
+  function fxCtx() {
+    var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    if (!cueCtx) cueCtx = new AC(); if (cueCtx.state === 'suspended') cueCtx.resume();
+    return cueCtx;
+  }
+  /* tones: a tone number 1-5 or a list of them. Returns { dur: seconds, played: true if sound was made }. */
+  function glide(tones, opts) {
+    tones = [].concat(tones); var total = 0, i;
+    for (i = 0; i < tones.length; i++) total += (SHAPES[tones[i]] || SHAPES[1]).d + (i ? 0.14 : 0);
+    if (!(opts && opts.vibrate === false) && navigator.vibrate) {
+      var pat = []; tones.forEach(function (n, k) { pat = pat.concat(k ? [140] : [], BUZZ[n] || BUZZ[1]); });
+      try { navigator.vibrate(pat); } catch (e) {}
+    }
+    var c = soundOn ? fxCtx() : null; if (!c) return { dur: total, played: false };
+    stopAll();
+    var t = c.currentTime + 0.05;
+    tones.forEach(function (n) {
+      var s = SHAPES[n] || SHAPES[1], o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(), peak = s.soft ? 0.12 : 0.3;
+      o.type = 'triangle'; lp.type = 'lowpass'; lp.frequency.value = 2200;
+      s.p.forEach(function (pt, k) { var tt = t + pt[0] * s.d; if (k === 0) o.frequency.setValueAtTime(pt[1], tt); else o.frequency.exponentialRampToValueAtTime(pt[1], tt); });
+      lfo.frequency.value = 5.5; lg.gain.value = 3; lfo.connect(lg); lg.connect(o.frequency);      // a little vibrato so it sounds like a voice
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.05); g.gain.setValueAtTime(peak, t + s.d - 0.1); g.gain.exponentialRampToValueAtTime(0.0001, t + s.d);
+      o.connect(lp); lp.connect(g); g.connect(c.destination);
+      o.start(t); lfo.start(t); o.stop(t + s.d + 0.03); lfo.stop(t + s.d + 0.03);
+      t += s.d + 0.14;
+    });
+    bed.fx = true; applyBed(); setTimeout(function () { bed.fx = false; applyBed(); }, total * 1000 + 150);
+    return { dur: total, played: true };
+  }
+  /* ---------- read a page aloud: English with the device voice, Mandarin words with a Chinese voice when there is one ---------- */
+  function readChunks(chunks) {
+    if (!soundOn || !window.speechSynthesis || !chunks || !chunks.length) return false;
+    stopAll();
+    var voices = speechSynthesis.getVoices(), zh = voices.filter(function (v) { return /^zh/i.test(v.lang); })[0], lastU = null;
+    bed.voice = true; applyBed();
+    chunks.forEach(function (c) {
+      var txt = c.text, useZh = false;
+      if (c.zh) { if (zh && c.hz) { txt = c.hz; useZh = true; } else txt = c.py || ''; }
+      if (!txt) return;
+      var u = new SpeechSynthesisUtterance(txt);
+      if (useZh) { u.lang = zh.lang; u.voice = zh; u.rate = 0.75; } else { u.lang = 'en'; u.rate = 0.95; }
+      lastU = u; speechSynthesis.speak(u);
+    });
+    if (!lastU) { bed.voice = false; applyBed(); return false; }
+    lastU.onend = lastU.onerror = function () { bed.voice = false; applyBed(); };
+    return true;
+  }
+  function isSpeaking() { return !!(window.speechSynthesis && speechSynthesis.speaking); }
   window.CPAudio = {
+    glide: glide, read: readChunks, isSpeaking: isSpeaking,
     cue: cue,
     play: play, stopAll: stopAll, preload: preload, speak: speak, say: say, ask: ask,
     setSound: function (on) { soundOn = !!on; if (!on) stopAll(); if (bed.gesture) startBed(); else applyBed(); },

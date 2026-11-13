@@ -15,7 +15,7 @@
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   var toastT;
-  function toast(msg) { toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('show'); }, 3200); }
+  function toast(msg, ms) { toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('show'); }, ms || 3200); }
   /* Module 0 (sounds and tones) is compulsory until it is passed: pages open in order, the tone page needs all five tones heard, and the quiz stays shut until then. */
   function gated(id) { return id === 0 && !S.passed[0]; }
   function toneCount() { return TONE_EX.filter(function (e) { return S.heard[e[0]]; }).length; }
@@ -99,6 +99,7 @@
   var NAME = 'Know your Chinese';
   function setTitle(t) { $('#barTitle').textContent = t; document.title = t === NAME ? NAME + ' · 你懂中文吗' : t + ' · ' + NAME; AU.bedMode(/^Quiz/.test(t) ? 'quiz' : 'lesson'); }
   function show(html, focus, keepAudio) {
+    if (window.CPAccess) CPAccess.cancel();
     if (!keepAudio) AU.stopAll();
     var hs = location.hash; main.classList.toggle('wide', hs === '' || hs === '#' || hs === '#/' || hs === '#/play' || hs === '#/badges');   // home, practice hub and badges use the full desktop width
     main.innerHTML = html;
@@ -121,6 +122,7 @@
         '<div class="tone-info"><div class="tone-shape">' + PY.contourSVG(e[2], 90) + '</div>' +
         '<div class="tone-name"><div class="ex">' + e[0] + ' <span lang="zh-Hans">' + e[1] + '</span></div><div class="nm">' + t.name + ' · ' + t.shape.toLowerCase() + '</div></div></div>' +
         '<div class="line"><button type="button" class="btn sm tone-hear" data-py="' + e[0] + '" data-hz="' + e[1] + '">🔊 Hear ' + e[0] + '</button></div>' +
+        '<div class="line"><button type="button" class="btn ghost sm tone-glide" data-tone="' + e[2] + '" aria-label="Hear the pitch of ' + e[0] + ', ' + t.name + '">〰 Hear the pitch</button></div>' +
         '<div class="line"><button type="button" class="btn ghost sm tone-how" data-py="' + e[0] + '" data-hz="' + e[1] + '">How to say it</button></div>' +
         '</div>';
     }).join('') + '</div>';
@@ -168,7 +170,7 @@
       return '<li><button type="button" class="tile ' + (locked ? 'locked' : 'open') + '" data-mod="' + m.id + '" aria-label="Module ' + m.id + ': ' + esc(m.title) + '. ' + sub + '"' + '>' +
         '<span class="num">' + m.id + '</span><span style="flex:1"><span class="t">' + esc(m.title) + '</span><br><span class="s">' + sub + '</span></span>' + right + '</button></li>';
     }).join('') + '</ol>';
-    h += '<div class="foot">' + (window.CPGame ? CPGame.footHTML() : '') + '<div class="line"><button class="btn ghost sm" id="btnInstall" hidden>Install app</button></div><div class="line"><button class="btn ghost sm" id="btnReset">Reset progress</button></div>' +
+    h += '<div class="foot">' + (window.CPGame ? CPGame.footHTML() : '') + '<div class="line"><button type="button" class="btn ghost sm" data-act="keys">Keyboard shortcuts</button></div><div class="line"><button class="btn ghost sm" id="btnInstall" hidden>Install app</button></div><div class="line"><button class="btn ghost sm" id="btnReset">Reset progress</button></div>' +
       '<footer class="credit-foot"><p>Produced by AwesomeKam of the AwesomePlanet</p></footer></div>';
     show(h);
     if (deferredInstall) $('#btnInstall').hidden = false;
@@ -191,7 +193,7 @@
       h += '<div class="pagehead"><p class="kicker">' + (idx === 0 ? esc(m.tag) : 'Module ' + id + ' · page ' + (idx + 1) + ' of ' + total) + '</p><h2>' + (idx === 0 ? esc(m.title) : esc(p.title)) + '</h2></div>';
       h += '<div class="content">' + blocks(p.blocks) + '</div>';
       if (idx === 0) h += '<p class="fine">This introduction is optional. You can skip it and go straight to the first lesson.</p><p><button class="btn ghost" data-act="skipintro">Skip the introduction</button></p>';
-      h += '<p class="hint"><span aria-hidden="true">👆</span> Tap any underlined pinyin or character to hear it and see how its tone sounds.</p>';
+      h += '<p class="hint"><span aria-hidden="true">👆</span> Tap any underlined pinyin or character to hear it and see how its tone sounds.</p><p><button type="button" class="btn ghost sm" data-act="readpage">🔊 Read this page aloud</button></p>';
       if (idx === 0 && S.read[id] && !gated(id)) h += '<p><button class="btn ghost sm" data-act="quiz">I know this. Go to the quiz</button></p>';
     } else {
       var tries = S.attempts[id] || 0;
@@ -204,6 +206,7 @@
       '<div class="line">' + (idx > 0 ? '<button class="btn ghost" data-act="prev">Back</button>' : '<button class="btn ghost" data-act="home">All modules</button>') + '</div>' +
       (isFinish ? '' : '<div class="line"><button class="btn" id="btnNextPage" data-act="next"' + ((pages[idx].gate && !pages[idx].gate()) ? ' disabled' : '') + '>' + (idx === total - 2 ? 'Finish module' : 'Next') + '</button></div>') + '</div></nav>';
     show(h);
+    if (window.CPAccess) CPAccess.on('page');
   }
 
   /* ---------- quiz ---------- */
@@ -240,13 +243,14 @@
         (!ok && AU.canAsk() ? '<div><button class="btn ghost sm" data-act="why" style="margin-top:.6rem">Ask the tutor why</button></div>' : '') +
         '<div class="tutor" id="tutor"></div></div>' +
         '<button class="btn" id="btnNext" data-act="qnext" style="width:100%">' + (Q.i === Q.qs.length - 1 ? 'See my result' : 'Next question') + '</button><p class="hint">Keyboard: press N for the next question.</p>';
-    } else h += '<p class="hint">Pick one answer. You can also press A, B, C or D' + (q.audio ? ', or R to hear it again' : '') + '.</p>';
+    } else h += '<p class="hint">Pick one answer. You can also press A, B, C or D' + (q.audio ? ', or R to hear it again' : '') + '.</p><p><button type="button" class="btn ghost sm" data-act="readq">🔊 Read the question and answers aloud</button></p>';
     show(h, false, true);
     if (ans) { var fbE = $('.fb'); if (fbE) { fbE.setAttribute('tabindex', '-1'); fbE.focus({ preventScroll: true }); try { fbE.scrollIntoView({ block: 'nearest' }); } catch (e) {} } }     // the screen reader reads the verdict and explanation; Tab reaches Next
     else {
       var qh = $('#qt'); if (qh) { qh.setAttribute('tabindex', '-1'); qh.focus({ preventScroll: true }); }
       if (q.audio && !cur.played) { cur.played = true; setTimeout(function () { if (quiz === Q && Q.qs[Q.i] === cur) CPGame.click({ dataset: { g: 'hear' } }); }, 250); }
     }
+    if (window.CPAccess) CPAccess.on(ans ? 'answer' : 'question', { audio: !!q.audio });
   }
   function answer(pos) {
     var Q = quiz; if (!Q || Q.answered) return;
@@ -296,6 +300,7 @@
               : '<div class="line"><button class="btn red" data-act="repeat" style="width:100%">Repeat Module ' + R.id + '</button></div>') +
       '<div class="line"><button class="btn ghost" data-act="home">All modules</button></div></div></div>';
     show(h);
+    if (window.CPAccess) CPAccess.on('result');
     AU.play(R.pass ? 'clap' : 'sad');
     if (R.pass) confetti();
     if (window.CPGame) CPGame.flushBadges();
@@ -333,12 +338,13 @@
     });
     a.notes.forEach(function (n) { h += '<div class="sandhi">' + esc(n) + '</div>'; });
     h += '<div class="row"><div class="line"><button class="btn sm" id="shListen">🔊 Listen</button></div>' +
-      (a.syllables.length ? '<div class="line"><button class="btn ghost sm" id="shDescribe">Read the tone description aloud</button></div>' : '') +
+      (a.syllables.length ? '<div class="line"><button class="btn ghost sm" id="shPitch">〰 Hear the pitch shapes</button></div>' : '') + (a.syllables.length ? '<div class="line"><button class="btn ghost sm" id="shDescribe">Read the tone description aloud</button></div>' : '') +
       (AU.canAsk() ? '<div class="line"><button class="btn ghost sm" id="shAsk">Ask the tutor</button></div>' : '') + '</div><div class="tutor" id="shTutor"></div>';
     openSheet(h);
     $('#shListen').onclick = function () {
       AU.speak(py, hz).then(function (v) { if (v === 'none') toast('No Chinese voice on this device. Connect to the internet for AI audio.'); });
     };
+    var pb = $('#shPitch'); if (pb) pb.onclick = function () { var r = AU.glide(a.syllables.map(function (x) { return x.tone; }), { vibrate: pref('vib') !== 0 }); if (!r.played) toast('Sound is paused. Press Play at the top of the page to hear it.'); };
     var d = $('#shDescribe'); if (d) d.onclick = function () { if (!AU.say(describeText(a))) toast('Sound is off or this device cannot read text aloud.'); };
     var k = $('#shAsk'); if (k) k.onclick = function () {
       var box = $('#shTutor'); box.textContent = 'Thinking…';
@@ -368,6 +374,46 @@
   function go(h) { if (location.hash === h) route(h); else location.hash = h; }
   window.addEventListener('hashchange', function () { route(); });
 
+  function pref(k) { return window.CPGame && CPGame.pref ? CPGame.pref(k) : 0; }
+  /* ---------- "Where am I?", shortcut commands and the shortcut list ---------- */
+  function whereText() {
+    var hs = location.hash, m, t = '', up = Math.min(S.unlocked, MODS.length - 1);
+    if (quiz) t = 'Quiz for Module ' + quiz.id + ', ' + MODS[quiz.id].title + '. Question ' + (quiz.i + 1) + ' of ' + quiz.qs.length + '. ' + quiz.score + ' correct so far.';
+    else if ((m = hs.match(/^#\/m\/(\d+)/))) {
+      var id = +m[1], ps = pagesOf(MODS[id]), ix = Math.min(S.page[id] || 0, ps.length);
+      t = 'Module ' + id + ', ' + MODS[id].title + '. ' + (ix >= ps.length ? 'Last page, ready for the quiz.' : 'Page ' + (ix + 1) + ' of ' + (ps.length + 1) + ': ' + ps[ix].title + '.');
+    } else if (hs === '' || hs === '#' || hs === '#/') t = 'Home page. ' + passedCount() + ' of ' + MODS.length + ' modules passed.' + (passedCount() < MODS.length ? ' Next up: Module ' + up + ', ' + MODS[up].title + '.' : '');
+    else t = 'You are on ' + $('#barTitle').textContent + '.';
+    if (window.CPGame && CPGame.statusText) t += ' ' + CPGame.statusText();
+    return t + ' Sound is ' + (S.sound ? 'playing' : 'paused') + '.';
+  }
+  function cmd(n) {
+    var up = Math.min(S.unlocked, MODS.length - 1), el;
+    if (n === 'home') go('#/');
+    else if (n === 'continue') go('#/m/' + up + '/' + (S.page[up] || 0));
+    else if (n === 'practice') go('#/play');
+    else if (n === 'badges') go('#/badges');
+    else if (n === 'options') { if (window.CPGame) CPGame.click({ dataset: { g: 'settings' } }); }
+    else if (n === 'tones') openToneGuide();
+    else if (n === 'keys') openKeys();
+    else if (n === 'pause') sb.click();
+    else if (n === 'listen') { if (window.CPAccess) CPAccess.toggleRead(); }
+    else if (n === 'where') { var w = whereText(); toast(w, 10000); if (window.CPAccess) CPAccess.speakIf(w); }
+    else if (n === 'next') {
+      if (quiz && quiz.answered) return nextQ();
+      if (quiz) return toast('Choose an answer first.');
+      el = $('#btnNextPage') || $('[data-act="quiz"]');
+      if (!el) return toast('There is no next page here.');
+      if (el.disabled) return toast('Hear all five tones first. ' + toneProgText());
+      el.click();
+    } else if (n === 'prev') { el = $('[data-act="prev"]'); if (el) el.click(); else toast('This is the first page.'); }
+  }
+  function openKeys() {
+    var rows = [['H', 'Home: all modules'], ['S', 'Start or continue learning'], ['N', 'Next page, or next question after you answer'], ['V', 'Previous page'], ['L', 'Listen: read this page or question aloud. Press again to stop'], ['W', 'Where am I? Says your page, streak, XP and badges'], ['K', 'Pause or play all sound'], ['P', 'Practice games'], ['G', 'Badges'], ['O', 'Settings'], ['F', 'Four tones guide'], ['A B C D or 1 2 3 4', 'Choose an answer in a quiz'], ['R', 'Hear a listening question again'], ['?', 'Show this list'], ['Esc', 'Close a window']];
+    openSheet('<h2 id="sheetTitle">Keyboard shortcuts</h2><p class="sub">Press the key on its own. If your screen reader keeps single letters for itself, hold <kbd>Alt</kbd> and <kbd>Shift</kbd> together with the letter instead, for example <kbd>Alt+Shift+W</kbd>. You can turn single keys off in Settings.</p>' +
+      '<div class="tablewrap"><table class="keys"><caption class="sr">Keyboard shortcuts</caption><thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr><th scope="row"><kbd>' + esc(r[0]) + '</kbd></th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>');
+  }
   /* ---------- events ---------- */
   document.addEventListener('click', function (e) {
     var pc = e.target.closest('[data-coin]'); if (pc && !e.target.closest('button, a')) { if (window.CPGame) CPGame.spin(pc); return; }
@@ -375,6 +421,16 @@
     if (t.dataset.g && window.CPGame && CPGame.click(t)) return;
     if (window.CPPractice && CPPractice.click(t, e)) return;
     if (t.classList.contains('py') || t.classList.contains('hz')) { e.preventDefault(); openTone(t.dataset.py, t.dataset.hz); AU.speak(t.dataset.py, t.dataset.hz); return; }
+    if (t.classList.contains('tone-glide')) {
+      var r = AU.glide([+t.dataset.tone], { vibrate: pref('vib') !== 0 });
+      if (!r.played) toast('Sound is paused. Press Play at the top of the page to hear it.');
+      var ln = t.closest('.tone-line'), cp = ln && ln.querySelector('.contour .cp'), cd = ln && ln.querySelector('.contour .cd');
+      if (cp && cd && document.documentElement.getAttribute('data-motion') !== 'reduce' && !(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches)) {   // redraw the line in time with the sound
+        cp.style.animation = 'none'; cd.style.animation = 'none'; void cp.getBoundingClientRect();
+        cp.style.animation = 'draw ' + r.dur + 's linear forwards'; cd.style.animation = 'pop .2s ' + r.dur + 's forwards';
+      }
+      return;
+    }
     if (t.classList.contains('tone-hear')) {
       if (!S.heard[t.dataset.py]) { S.heard[t.dataset.py] = true; save(); }
       var tp = $('#toneProg'), nb = $('#btnNextPage'); if (tp) tp.textContent = toneProgText(); if (nb && tonesDone() && /^#\/m\/0\//.test(location.hash)) nb.disabled = false;
@@ -392,6 +448,8 @@
     if (act === 'next') go('#/m/' + id2 + '/' + ((S.page[id2] || 0) + 1));
     else if (act === 'prev') go('#/m/' + id2 + '/' + ((S.page[id2] || 0) - 1));
     else if (act === 'home') go('#/');
+    else if (act === 'readpage' || act === 'readq') { if (window.CPAccess) CPAccess.toggleRead(); }
+    else if (act === 'keys') openKeys();
     else if (act === 'skipintro') go('#/m/' + id2 + '/1');
     else if (act === 'skipwelcome') { markWelcomed(); home(); }
     else if (act === 'quiz') { S.read[id2] = true; save(); startQuiz(id2); }
@@ -420,7 +478,6 @@
       var k = 'abcd1234'.indexOf(e.key.toLowerCase());
       if (k >= 0 && (k % 4) < quiz.qs[quiz.i].order.length) answer(k % 4);
     }
-    if (quiz && quiz.answered && sheetWrap.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'n' && !/^(INPUT|TEXTAREA|BUTTON)$/.test((e.target || {}).tagName || '')) { e.preventDefault(); nextQ(); return; }
     if (quiz && sheetWrap.hidden && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'r' && quiz.qs[quiz.i].q.audio && !/^(INPUT|TEXTAREA)$/.test((e.target || {}).tagName || '')) { e.preventDefault(); CPGame.click({ dataset: { g: 'hear' } }); }
   });
   $('#sheetClose').onclick = closeSheet; $('#scrim').onclick = closeSheet;
@@ -441,7 +498,7 @@
   };
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferredInstall = e; var b = $('#btnInstall'); if (b) b.hidden = false; });
 
-  window.CPApp = { AU: AU, MODS: MODS, richInline: richInline, unlocked: function () { return S.unlocked; }, clearQuiz: function () { quiz = null; }, S: function () { return S; }, toast: toast, show: show, setTitle: setTitle, rich: rich, esc: esc, openSheet: openSheet, closeSheet: closeSheet, confetti: confetti, go: go, quiz: function () { return quiz; }, rerenderQuiz: function () { if (quiz) renderQ(); } };
+  window.CPApp = { cmd: cmd, AU: AU, MODS: MODS, richInline: richInline, unlocked: function () { return S.unlocked; }, clearQuiz: function () { quiz = null; }, S: function () { return S; }, toast: toast, show: show, setTitle: setTitle, rich: rich, esc: esc, openSheet: openSheet, closeSheet: closeSheet, confetti: confetti, go: go, quiz: function () { return quiz; }, rerenderQuiz: function () { if (quiz) renderQ(); } };
   /* ---------- start ---------- */
   load();
   if (!S.welcomed && (passedCount() > 0 || S.unlocked > 0 || Object.keys(S.attempts).length > 0)) { S.welcomed = true; save(); }   // people who already have progress do not need the welcome

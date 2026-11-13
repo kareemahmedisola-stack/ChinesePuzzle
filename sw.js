@@ -1,8 +1,8 @@
 /* Know your Chinese service worker: works offline; code is fetched fresh when online, sounds and pictures come from the cache. Bump VERSION when files change. */
-const VERSION = 'cp-v8';
+const VERSION = 'cp-v9';
 const SHELL = [
   './', 'index.html', 'manifest.json', 'css/style.css', 'css/game.css',
-  'js/config.js', 'js/course.js', 'js/course-extra.js', 'js/explanations.js', 'js/pinyin.js', 'js/audio.js', 'js/engine.js', 'js/game.js', 'js/practice.js', 'js/app.js',
+  'js/config.js', 'js/course.js', 'js/course-extra.js', 'js/explanations.js', 'js/pinyin.js', 'js/audio.js', 'js/engine.js', 'js/game.js', 'js/practice.js', 'js/access.js', 'js/app.js',
   'sounds/clap.mp3', 'sounds/sad-tune.mp3', 'sounds/emotional-damage.mp3', 'sounds/QuestionTag.mp3', 'sounds/bed.mp3',
   'img/welcome.jpeg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png'
 ];
