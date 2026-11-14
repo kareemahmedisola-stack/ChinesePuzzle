@@ -63,6 +63,16 @@
     }
     return { syllables: syl, notes: notes };
   }
+  /* tone numbers for braille displays and keyboards: mā -> ma1, Zhōngguó -> Zhong1guo2, yìdiǎnr -> yi4dian3r */
+  var TMARK = { '\u0304': 1, '\u0301': 2, '\u030c': 3, '\u0300': 4 };
+  function plainSyl(s) { var t = 5, d = s.normalize('NFD').replace(/[\u0304\u0301\u030c\u0300]/g, function (m) { t = TMARK[m]; return ''; }); return d.normalize('NFC') + t; }
+  var TOKEN = /[A-Za-z\u00C0-\u024F']+/g, SYLN = /(?:[e\u0113\u00E9\u011B\u00E8]r(?![aeiouv\u00C0-\u024F]))|(?:zh|ch|sh|[bpmfdtnlgkhjqxzcsrwy])?[aeiouv\u00C0-\u024F]+(?:ng(?![aeiouv\u00C0-\u024F])|n(?![aeiouv\u00C0-\u024F]))?/gi;
+  function numberize(text) {
+    return String(text).normalize('NFC').replace(TOKEN, function (tok) {
+      if (!hasToneMark(tok)) return tok;
+      return tok.replace(SYLN, plainSyl);
+    });
+  }
   function contourSVG(tone, size) {
     var pts = PATH[tone], w = 64, h = 44, pad = 6, n = pts.length;
     var d = pts.map(function (lv, i) {
@@ -75,5 +85,5 @@
     return '<svg class="contour" viewBox="0 0 ' + w + ' ' + h + '" width="' + (size || 64) + '" height="' + Math.round((size || 64) * h / w) + '" aria-hidden="true">' + grid +
       '<path d="' + d + '" class="cp" pathLength="100"/><circle cx="' + lx + '" cy="' + ly.toFixed(1) + '" r="3" class="cd"/></svg>';
   }
-  window.CPPinyin = { TONES: TONES, toneOf: toneOf, hasToneMark: hasToneMark, segment: segment, analyze: analyze, contourSVG: contourSVG };
+  window.CPPinyin = { TONES: TONES, toneOf: toneOf, hasToneMark: hasToneMark, segment: segment, analyze: analyze, contourSVG: contourSVG, numberize: numberize };
 })();

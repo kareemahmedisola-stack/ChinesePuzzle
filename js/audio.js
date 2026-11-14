@@ -287,9 +287,15 @@
     lastU.onend = lastU.onerror = function () { bed.voice = false; applyBed(); };
     return true;
   }
+  function beep(freq, ms) {
+    if (!soundOn) return; var c = fxCtx(); if (!c) return;
+    var o = c.createOscillator(), g = c.createGain(), t = c.currentTime, d = ms / 1000;
+    o.type = 'sine'; o.frequency.value = freq; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + d + 0.02);
+  }
   function isSpeaking() { return !!(window.speechSynthesis && speechSynthesis.speaking); }
   window.CPAudio = {
-    glide: glide, read: readChunks, isSpeaking: isSpeaking,
+    glide: glide, beep: beep, read: readChunks, isSpeaking: isSpeaking,
     cue: cue,
     play: play, stopAll: stopAll, preload: preload, speak: speak, say: say, ask: ask,
     setSound: function (on) { soundOn = !!on; if (!on) stopAll(); if (bed.gesture) startBed(); else applyBed(); },

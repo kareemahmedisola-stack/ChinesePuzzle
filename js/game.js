@@ -26,7 +26,7 @@
 
   /* ---------- saved state ---------- */
   var G = { xp: 0, streak: 0, best: 0, lastDay: '', day: '', dayXP: 0, goalDay: '', goal: CFG.DAILY_GOAL_XP || 50,
-    srs: {}, badges: {}, mig: 0, prefs: { text: 0, contrast: 0, motion: 0, read: 0, keys: 1, vib: 1 }, stats: { quizzes: 0, perfect: 0, reviews: 0, speedBest: 0, matchBest: 0, built: 0, listenOK: 0, toneOK: 0 } };
+    srs: {}, badges: {}, mig: 0, prefs: { text: 0, contrast: 0, motion: 0, read: 0, keys: 1, vib: 1, pystyle: 0, timer: 0, warn: 1 }, stats: { quizzes: 0, perfect: 0, reviews: 0, speedBest: 0, matchBest: 0, built: 0, listenOK: 0, toneOK: 0 } };
   function load() {
     try {
       var j = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -313,7 +313,7 @@
       ['duel', '⚔️', 'Tone duel', 'Hear one of mā, má, mǎ or mà and pick which one it was.'],
       ['build', '🧩', 'Sentence builder', 'Tap the word tiles into the right order.'],
       ['match', '🃏', 'Memory match', 'Flip cards to pair pinyin with its meaning.'],
-      ['speed', '⚡', 'Speed round', 'Right answers as fast as you can in ' + SPEED_SECS + ' seconds.'],
+      ['speed', '⚡', 'Speed round', speedBlurb()],
       ['audio', '💾', 'Offline audio', 'Save spoken words on this device so listening works anywhere.'],
       ['badges', '🏅', 'My badges', earnedCount() + ' of ' + BADGES.length + ' earned. Spin the 3D coins.']
     ];
@@ -341,9 +341,11 @@
   }
 
   /* ---------- speed round ---------- */
+  function speedSecs() { var t = G.prefs.timer || 0; return t === 1 ? SPEED_SECS * 2 : t === 2 ? 0 : SPEED_SECS; }
+  function speedBlurb() { var t = G.prefs.timer || 0; return t === 2 ? 'Right answers at your own pace, with no clock.' : 'Right answers as fast as you can in ' + speedSecs() + ' seconds.'; }
   function startSpeed() {
     stopTimers();
-    SESS = { mode: 'speed', pool: vocabUpTo(reach()), end: Date.now() + SPEED_SECS * 1000, correct: 0, wrong: 0, combo: 0, bestCombo: 0, xp: 0, lock: false, q: null };
+    SESS = { mode: 'speed', pool: vocabUpTo(reach()), secs: speedSecs(), timer: G.prefs.timer || 0, warned: {}, end: speedSecs() ? Date.now() + speedSecs() * 1000 : Infinity, correct: 0, wrong: 0, combo: 0, bestCombo: 0, xp: 0, lock: false, q: null };
     location.hash = '#/play/speed'; speedQ();
     timers.push(setInterval(tickSpeed, 200));
   }
@@ -353,35 +355,42 @@
     s.q = mkItem(q, ''); s.lock = false; s.picked = -1; renderSpeed();
   }
   function renderSpeed() {
-    var A_ = app(), s = SESS, cur = s.q, q = cur.q, left = Math.max(0, Math.ceil((s.end - Date.now()) / 1000)); A_.setTitle('Speed round');
-    var h = '<div class="qtop"><span>Right <b>' + s.correct + '</b>' + (s.combo >= 3 ? ' · combo x' + s.combo : '') + '</span><span id="gTime" aria-hidden="true">' + left + 's</span></div>' +
-      '<div class="timer" aria-hidden="true"><i id="gBar" style="width:' + Math.max(0, (s.end - Date.now()) / (SPEED_SECS * 10)) + '%"></i></div>' +
+    var A_ = app(), s = SESS, cur = s.q, q = cur.q, left = s.secs ? Math.max(0, Math.ceil((s.end - Date.now()) / 1000)) : 0; A_.setTitle('Speed round');
+    var h = '<div class="qtop"><span>Right <b>' + s.correct + '</b>' + (s.combo >= 3 ? ' · combo x' + s.combo : '') + '</span><span id="gTime" aria-hidden="true">' + (s.secs ? left + 's' : 'No timer') + '</span></div>' +
+      (s.secs ? '<div class="timer" aria-hidden="true"><i id="gBar" style="width:' + Math.max(0, (s.end - Date.now()) / (s.secs * 10)) + '%"></i></div>' : '') +
       '<h2 class="qtext" id="qt">' + esc(q.q) + '</h2><ul class="opts" role="group" aria-labelledby="qt">';
     cur.order.forEach(function (oi, pos) {
       var cls = 'opt' + (s.picked >= 0 ? (pos === cur.right ? ' right' : pos === s.picked ? ' wrong' : '') : '');
       h += '<li><button type="button" class="' + cls + '" data-g="sopt" data-pos="' + pos + '"' + (s.picked >= 0 ? ' disabled' : '') + '><span class="k">' + 'ABCD'[pos] + '</span><span>' + esc(q.o[oi]) + '</span></button></li>';
     });
-    h += '</ul><p class="hint">Wrong answers cost 3 seconds. Press A, B, C or D.</p><p class="quit"><button class="btn ghost sm" data-g="hub">Stop</button></p><p class="sr" role="status" id="gLive"></p>';
+    h += '</ul><p class="hint">' + (s.timer === 0 ? 'Wrong answers cost 3 seconds. ' : '') + 'Press A, B, C or D.</p><p class="quit">' + (s.secs ? '' : '<button class="btn sm" data-g="speedend">Finish round</button> ') + '<button class="btn ghost sm" data-g="hub">Stop</button></p><p class="sr" role="status" id="gLive"></p>';
     A_.show(h, false, true);
   }
   function tickSpeed() {
-    var s = SESS; if (!s || s.mode !== 'speed') return;
+    var s = SESS; if (!s || s.mode !== 'speed' || !s.secs) return;
     var left = (s.end - Date.now()) / 1000, t = document.getElementById('gTime'), b = document.getElementById('gBar');
-    if (t) t.textContent = Math.max(0, Math.ceil(left)) + 's'; if (b) b.style.width = Math.max(0, left / SPEED_SECS * 100) + '%';
+    if (t) t.textContent = Math.max(0, Math.ceil(left)) + 's'; if (b) b.style.width = Math.max(0, left / s.secs * 100) + '%';
+    speedWarn(s, left);
     if (left <= 0) endSpeed();
+  }
+  function speedWarn(s, left) {
+    if (G.prefs.warn === 0) return;
+    var live = document.getElementById('gLive'), sec = Math.ceil(left);
+    [30, 10].forEach(function (th) { if (sec <= th && !s.warned[th] && s.secs > th) { s.warned[th] = 1; if (live) live.textContent = th + ' seconds left'; AU.beep(660, 130); } });
+    if (sec <= 5 && sec >= 1 && s.warned.last !== sec) { s.warned.last = sec; AU.beep(sec === 1 ? 990 : 740, 90); }
   }
   function answerSpeed(pos) {
     var s = SESS; if (!s || s.mode !== 'speed' || s.lock || s.picked >= 0) return;
     var cur = s.q, ok = pos === cur.right; s.picked = pos; s.lock = true;
-    if (ok) { s.correct++; s.combo++; s.bestCombo = Math.max(s.bestCombo, s.combo); s.xp += addXP(s.combo >= 5 ? 6 : 4); AU.play('clap'); }
-    else { s.wrong++; s.combo = 0; s.end -= 3000; AU.play('damage'); }
+    if (ok) { s.correct++; s.combo++; s.bestCombo = Math.max(s.bestCombo, s.combo); s.xp += addXP(s.combo >= 5 ? (s.timer === 2 ? 1 : s.timer === 1 ? 4 : 6) : (s.timer === 2 ? 1 : s.timer === 1 ? 3 : 4)); AU.play('clap'); }
+    else { s.wrong++; s.combo = 0; if (s.timer === 0) s.end -= 3000; AU.play('damage'); }
     renderSpeed(); var live = document.getElementById('gLive'); if (live) live.textContent = ok ? 'Correct' : 'Wrong. Answer ' + cur.q.o[cur.q.a];
     later(function () { if (SESS === s) { if (s.end - Date.now() <= 0) endSpeed(); else speedQ(); } }, ok ? 450 : 1100);
   }
   function endSpeed() {
     var s = SESS; if (!s || s.mode !== 'speed' || s.done) return; s.done = true; stopTimers();
-    G.stats.speedBest = Math.max(G.stats.speedBest, s.correct); checkBadges(); save();
-    summary('Speed round', s.correct + ' right', s.xp, 'speed', s.correct >= 10);
+    if (s.timer === 0) G.stats.speedBest = Math.max(G.stats.speedBest, s.correct); checkBadges(); save();
+    summary('Speed round', s.correct + ' right', s.xp, 'speed', s.timer === 0 && s.correct >= 10);
   }
 
   /* ---------- memory match ---------- */
@@ -500,6 +509,9 @@
       '<fieldset class="goalset"><legend>Daily goal</legend>' + [30, 50, 100].map(function (n) { return '<label><input type="radio" name="goal" value="' + n + '"' + (G.goal === n ? ' checked' : '') + '> ' + n + ' XP' + (n === 30 ? ' (relaxed)' : n === 50 ? ' (steady)' : ' (keen)') + '</label>'; }).join('') + '</fieldset>' +
       '<fieldset class="goalset"><legend>Text size</legend>' + radios('ptext', ['Normal', 'Large', 'Extra large'], G.prefs.text) + '</fieldset>' +
       '<fieldset class="goalset"><legend>Display</legend><label><input type="checkbox" id="pContrast"' + (G.prefs.contrast ? ' checked' : '') + '> High contrast colours</label><label><input type="checkbox" id="pMotion"' + (G.prefs.motion ? ' checked' : '') + '> Reduce motion and confetti</label></fieldset>' +
+      '<fieldset class="goalset"><legend>Pinyin style</legend>' + radios('ppy', ['Tone marks, like mā má mǎ mà', 'Tone numbers, like ma1 ma2 ma3 ma4 (easier on braille displays)'], G.prefs.pystyle ? 1 : 0) + '</fieldset>' +
+      '<fieldset class="goalset"><legend>Speed round timer</legend>' + radios('ptimer', ['Standard: ' + SPEED_SECS + ' seconds, wrong answers cost 3 seconds', 'Relaxed: ' + (SPEED_SECS * 2) + ' seconds, wrong answers cost no time', 'No timer: take your time, then press Finish round (less XP)'], G.prefs.timer || 0) + '<label><input type="checkbox" id="pWarn"' + (G.prefs.warn !== 0 ? ' checked' : '') + '> Time warnings: announced to screen readers at 30 and 10 seconds, with short beeps for the last 5</label></fieldset>' +
+      '<fieldset class="goalset"><legend>Back up your progress</legend><p class="fine">Save your progress to a file to keep it safe or move it to another phone or computer. Loading a file replaces the progress on this device.</p><div class="line"><button type="button" class="btn ghost sm" data-act="exportprog">Save my progress to a file</button></div><label for="progFile">Load progress from a file</label><input type="file" id="progFile" accept=".json,application/json"></fieldset>' +
       '<fieldset class="goalset"><legend>Listening and keys</legend><label><input type="checkbox" id="pRead"' + (G.prefs.read ? ' checked' : '') + '> Read pages, questions and answers aloud automatically</label><label><input type="checkbox" id="pKeys"' + (G.prefs.keys !== 0 ? ' checked' : '') + '> One-key shortcuts (H, S, N, W and so on)</label><label><input type="checkbox" id="pVib"' + (G.prefs.vib !== 0 ? ' checked' : '') + '> Vibrate with the tone pitch (phones)</label><p class="fine">If your screen reader already reads everything, leave automatic reading off. You can always press L to read the current page or question. Alt+Shift with a letter always works, even when your screen reader keeps single letters for itself.</p><div class="line"><button type="button" class="btn ghost sm" data-act="keys">See all keyboard shortcuts</button></div></fieldset>' +
       '<div class="keybox"><label for="gKey"><b>Gemini API key</b> (optional)</label><p class="fine">Turns on natural Mandarin audio and “Ask the tutor”. ' + (proxy ? 'This site already uses a secure server, so you do not need a key.' : 'Paste your own key. It is saved only on this device and is never part of the app files.') + '</p>' +
       '<input id="gKey" type="password" autocomplete="off" spellcheck="false" value="' + esc(key) + '"' + (proxy ? ' disabled' : '') + '></div>' +
@@ -525,6 +537,7 @@
   function click(t) {
     var act = t.dataset && t.dataset.g; if (!act) return false;
     var A_ = app();
+    if (act === 'speedend') { endSpeed(); return true; }
     if (act === 'sopt') { answerSpeed(+t.dataset.pos); return true; }
     if (act === 'hear') { var cur = A_quiz() && A_quiz().qs[A_quiz().i]; if (cur) hearCur(cur, false); return true; }
     if (act === 'card') { flipCard(+t.dataset.i); return true; }
@@ -536,7 +549,8 @@
       var r = document.querySelector('input[name="goal"]:checked'); if (r) G.goal = +r.value;
       var pt = document.querySelector('input[name="ptext"]:checked'); if (pt) G.prefs.text = +pt.value;
       var pc = document.getElementById('pContrast'), pm = document.getElementById('pMotion'); if (pc) G.prefs.contrast = pc.checked ? 1 : 0; if (pm) G.prefs.motion = pm.checked ? 1 : 0; applyPrefs();
-      var pr = document.getElementById('pRead'), pk = document.getElementById('pKeys'), pv = document.getElementById('pVib'); if (pr) G.prefs.read = pr.checked ? 1 : 0; if (pk) G.prefs.keys = pk.checked ? 1 : 0; if (pv) G.prefs.vib = pv.checked ? 1 : 0;
+      var pr = document.getElementById('pRead'), pk = document.getElementById('pKeys'), pv = document.getElementById('pVib'); var ppy = document.querySelector('input[name="ppy"]:checked'), ptm = document.querySelector('input[name="ptimer"]:checked'), pw = document.getElementById('pWarn'); if (ppy) G.prefs.pystyle = +ppy.value; if (ptm) G.prefs.timer = +ptm.value; if (pw) G.prefs.warn = pw.checked ? 1 : 0; if (window.CPAccess) CPAccess.applyStyle();
+      if (pr) G.prefs.read = pr.checked ? 1 : 0; if (pk) G.prefs.keys = pk.checked ? 1 : 0; if (pv) G.prefs.vib = pv.checked ? 1 : 0;
       var k = document.getElementById('gKey'); if (k && !k.disabled) { try { if (k.value.trim()) localStorage.setItem('cp.geminiKey', k.value.trim()); else localStorage.removeItem('cp.geminiKey'); } catch (e) {} }
       save(); A_.closeSheet(); A_.toast('Settings saved.'); if (!location.hash || location.hash === '#/' || location.hash === '#') A_.go('#/'); return true;
     }

@@ -2,7 +2,7 @@ KNOW YOUR CHINESE (你懂中文吗 · Nǐ dǒng Zhōngwén ma?)
 Produced by AwesomeKam of the AwesomePlanet – Mandarin & PRC Studies
 19 modules · 668 quiz questions · 611 practice words · 102 practice sentences · 17 badges
 
-THIS IS THE INTEGRATED VERSION (cache cp-v9)
+THIS IS THE INTEGRATED VERSION (cache cp-v11)
 It merges the two earlier packages (ChinesePuzzle.zip and ChinesePuzzle_upgraded.zip) into one app.
 Both packages had grown from the same base and built overlapping features, so there is now ONE
 word bank, ONE review schedule, ONE XP total and ONE streak. Progress saved by either older

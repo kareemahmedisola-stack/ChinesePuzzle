@@ -1,7 +1,7 @@
 /* Know your Chinese – listening and keyboard access: read-aloud, one-key shortcuts and "Where am I?". */
 (function () {
   'use strict';
-  var timer = 0, lastKey = '';
+  var timer = 0, lastKey = '', ORIG = new WeakMap(), obs = null, MARKS = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/i;
   function AU() { return window.CPAudio; }
   function pref(k) { return window.CPGame && CPGame.pref ? CPGame.pref(k) : 0; }
   function app() { return window.CPApp; }
@@ -11,7 +11,7 @@
   function addEn(out, t) { var l = out[out.length - 1]; if (l && !l.zh) l.text += ' ' + t; else out.push({ text: t }); }
   function inline(node, out) {
     [].forEach.call(node.childNodes, function (n) {
-      if (n.nodeType === 3) { var t = clean(n.nodeValue); if (t) addEn(out, t); return; }
+      if (n.nodeType === 3) { var t = clean(ORIG.get(n) || n.nodeValue); if (t) addEn(out, t); return; }
       if (n.nodeType !== 1) return;
       if (n.getAttribute('aria-hidden') === 'true' || n.classList.contains('sr')) return;
       if (n.classList.contains('py') || n.classList.contains('hz')) {
@@ -20,6 +20,7 @@
         out.push({ zh: true, py: py, hz: hz }); return;
       }
       if (/^(BUTTON|SVG|SCRIPT)$/i.test(n.tagName)) return;
+      if (/^zh/i.test(n.getAttribute('lang') || '')) { var z = clean(n.textContent); if (z) out.push({ zh: true, py: '', hz: z }); return; }
       inline(n, out);
     });
   }
@@ -115,5 +116,68 @@
     e.preventDefault(); app().cmd(name);
   });
 
-  window.CPAccess = { on: on, cancel: cancel, toggleRead: toggleRead, speakIf: speakIf };
+  /* ---------- label every run of Chinese characters with lang="zh-Hans" ----------
+     Screen readers choose the voice from the language label. Plain Chinese text with no label is read by the English voice, which skips it. */
+  var HAN_TEST = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/, HAN_RUN = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF][\u3000-\u303F\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]*/g;
+  function inZh(n) { var el = n.parentNode; while (el && el.nodeType === 1) { var l = el.getAttribute('lang'); if (l) return /^zh/i.test(l); el = el.parentNode; } return false; }
+  function tagText(n) {
+    var v = n.nodeValue, p = n.parentNode;
+    if (!v || !HAN_TEST.test(v) || !p || p.nodeType !== 1 || /^(SCRIPT|STYLE|TEXTAREA|TITLE)$/.test(p.tagName) || inZh(n)) return;
+    var re = new RegExp(HAN_RUN.source, 'g'), last = 0, m, frag = document.createDocumentFragment();
+    while ((m = re.exec(v))) {
+      if (m.index > last) frag.appendChild(document.createTextNode(v.slice(last, m.index)));
+      var sp = document.createElement('span'); sp.setAttribute('lang', 'zh-Hans'); sp.textContent = m[0]; frag.appendChild(sp); last = re.lastIndex;
+    }
+    if (last < v.length) frag.appendChild(document.createTextNode(v.slice(last)));
+    p.replaceChild(frag, n);
+  }
+  function tagTree(root) {
+    if (!root) return;
+    if (root.nodeType === 3) return tagText(root);
+    if (root.nodeType !== 1) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), list = [], n;
+    while ((n = w.nextNode())) if (HAN_TEST.test(n.nodeValue)) list.push(n);
+    list.forEach(tagText);
+  }
+
+  /* ---------- pinyin style: tone marks (mā) or tone numbers (ma1). Numbers suit braille displays and keyboards. ---------- */
+  function numbers() { return pref('pystyle') === 1; }
+  function convText(n) { var v = n.nodeValue; if (!v || !MARKS.test(v)) return; var p = n.parentNode; if (p && /^(SCRIPT|STYLE|TEXTAREA)$/.test(p.tagName)) return; ORIG.set(n, v); n.nodeValue = window.CPPinyin.numberize(v); }
+  function convEl(el) {
+    ['aria-label', 'title'].forEach(function (a) {
+      var v = el.getAttribute && el.getAttribute(a);
+      if (v && MARKS.test(v)) { el.setAttribute('data-o-' + a, v); el.setAttribute(a, window.CPPinyin.numberize(v)); }
+    });
+  }
+  function convTree(root) {
+    if (!root) return;
+    if (root.nodeType === 3) return convText(root);
+    if (root.nodeType !== 1) return;
+    convEl(root);
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null), n;
+    while ((n = w.nextNode())) { if (n.nodeType === 3) convText(n); else convEl(n); }
+  }
+  function restore() {
+    var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null), n;
+    while ((n = w.nextNode())) {
+      if (n.nodeType === 3) { if (ORIG.has(n)) { var o = ORIG.get(n); if (n.nodeValue === window.CPPinyin.numberize(o)) n.nodeValue = o; ORIG.delete(n); } }
+      else ['aria-label', 'title'].forEach(function (a) { var o = n.getAttribute('data-o-' + a); if (o !== null) { n.setAttribute(a, o); n.removeAttribute('data-o-' + a); } });
+    }
+  }
+  function startObs() {
+    if (obs || !window.MutationObserver) return;
+    obs = new MutationObserver(function (recs) {
+      recs.forEach(function (r) {
+        if (r.type === 'characterData') { tagText(r.target); if (numbers() && r.target.parentNode) convText(r.target); }
+        else if (r.type === 'attributes') { if (numbers()) convEl(r.target); }
+        else [].forEach.call(r.addedNodes, function (nd) { tagTree(nd); if (numbers()) convTree(nd); });
+      });
+      obs.takeRecords();          // our own changes do not need another pass
+    });
+    obs.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'title'] });
+  }
+  function applyStyle() { startObs(); tagTree(document.body); if (numbers()) convTree(document.body); else restore(); if (obs) obs.takeRecords(); }
+  applyStyle();
+
+  window.CPAccess = { applyStyle: applyStyle, on: on, cancel: cancel, toggleRead: toggleRead, speakIf: speakIf };
 })();

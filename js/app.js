@@ -374,6 +374,32 @@
   function go(h) { if (location.hash === h) route(h); else location.hash = h; }
   window.addEventListener('hashchange', function () { route(); });
 
+  /* ---------- back up and restore progress (a plain .json file; the Gemini key is never included) ---------- */
+  var GAME_KEY = 'chinesePuzzle.game.v1';
+  function exportProgress() {
+    var d = new Date(), stamp = d.toISOString().slice(0, 10), data = { app: 'know-your-chinese', version: 1, saved: d.toISOString(), progress: S, game: (window.CPGame && CPGame.state) ? CPGame.state() : {} };
+    try {
+      var url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })), a = document.createElement('a');
+      a.href = url; a.download = 'know-your-chinese-progress-' + stamp + '.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      toast('Progress saved to a file called know-your-chinese-progress-' + stamp + '.json. Look in your Downloads.', 6000);
+    } catch (e) { toast('This browser could not save a file.', 6000); }
+  }
+  function importProgress(file) {
+    if (!file) return;
+    if (file.size > 3000000) return toast('That file is too big to be a progress file.', 6000);
+    var rd = new FileReader();
+    rd.onload = function () {
+      var d; try { d = JSON.parse(rd.result); } catch (e) { return toast('That file could not be read. Choose a progress file saved from this app.', 6000); }
+      if (!d || d.app !== 'know-your-chinese' || !d.progress || typeof d.progress !== 'object' || !d.game || typeof d.game !== 'object' || typeof d.progress.unlocked !== 'number') return toast('That is not a Know your Chinese progress file.', 6000);
+      var n = Object.keys(d.progress.passed || {}).length, when = d.saved ? new Date(d.saved).toLocaleDateString() : 'an unknown date';
+      if (!window.confirm('Load this progress file? It was saved on ' + when + ' and has ' + n + (n === 1 ? ' module' : ' modules') + ' passed. It will replace the progress on this device.')) return;
+      try { localStorage.setItem(KEY, JSON.stringify(d.progress)); localStorage.setItem(GAME_KEY, JSON.stringify(d.game)); } catch (e) { return toast('This device could not store the progress.', 6000); }
+      location.hash = '#/'; location.reload();
+    };
+    rd.onerror = function () { toast('That file could not be read.', 6000); };
+    rd.readAsText(file);
+  }
+  document.addEventListener('change', function (e) { if (e.target && e.target.id === 'progFile') importProgress(e.target.files && e.target.files[0]); });
   function pref(k) { return window.CPGame && CPGame.pref ? CPGame.pref(k) : 0; }
   /* ---------- "Where am I?", shortcut commands and the shortcut list ---------- */
   function whereText() {
@@ -450,6 +476,7 @@
     else if (act === 'home') go('#/');
     else if (act === 'readpage' || act === 'readq') { if (window.CPAccess) CPAccess.toggleRead(); }
     else if (act === 'keys') openKeys();
+    else if (act === 'exportprog') exportProgress();
     else if (act === 'skipintro') go('#/m/' + id2 + '/1');
     else if (act === 'skipwelcome') { markWelcomed(); home(); }
     else if (act === 'quiz') { S.read[id2] = true; save(); startQuiz(id2); }
