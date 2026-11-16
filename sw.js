@@ -1,5 +1,5 @@
 /* Know your Chinese service worker: works offline; code is fetched fresh when online, sounds and pictures come from the cache. Bump VERSION when files change. */
-const VERSION = 'cp-v11';
+const VERSION = 'cp-v12';
 const SHELL = [
   './', 'index.html', 'manifest.json', 'css/style.css', 'css/game.css',
   'js/config.js', 'js/course.js', 'js/course-extra.js', 'js/explanations.js', 'js/pinyin.js', 'js/audio.js', 'js/engine.js', 'js/game.js', 'js/practice.js', 'js/access.js', 'js/app.js',

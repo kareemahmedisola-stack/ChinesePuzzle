@@ -142,6 +142,7 @@
     var first = !S.welcomed, resume = started ? Math.min(S.unlocked, MODS.length - 1) : 0;
     /* line 1: the welcome address */
     var h = '<h1 class="addr"><span class="a1">' + (first ? 'Welcome,' : 'Welcome back,') + '</span> <span class="a2">learner!</span> <span class="a3" lang="zh-Hans">' + (first ? '欢迎' : '欢迎回来') + '</span></h1><div class="addr-bar" aria-hidden="true"></div>';
+    if (!first) h += '<div class="line"><button type="button" class="btn red cta" data-act="start" data-mod="' + resume + '">Continue learning</button></div>';
     h += '<div class="top2"><section class="hero"><p class="zh" lang="zh-Hans">你懂中文吗</p><h2>' + NAME + '</h2>' +
       '<p class="zhpy">' + pyBtn('Nǐ dǒng Zhōngwén ma?', '你懂中文吗') + '</p>' +
       '<div class="meter"><div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="' + MODS.length + '" aria-valuenow="' + done + '" aria-label="Modules passed"><div class="fill" style="width:' + pct + '%"></div></div><span>' + done + ' of ' + MODS.length + ' passed</span></div></section>';
@@ -159,8 +160,6 @@
         '<div class="line"><button type="button" class="btn red cta" data-act="start" data-mod="0">Start the first lesson</button></div>' +
         '<div class="line"><button type="button" class="btn ghost sm" data-act="skipwelcome">Skip the welcome and show me the modules</button></div>' +
         '<p class="fine">First lesson: ' + esc(MODS[0].title) + '. Score ' + PASS + ' out of ' + QLEN + ' on each quiz to open the next module.</p></section></div>';
-    } else {
-      h += '<div class="line"><button type="button" class="btn red cta" data-act="start" data-mod="' + resume + '">Continue learning</button></div>';
     }
     h += '<h2 class="modhead">All modules</h2><ol class="grid">' + MODS.map(function (m) {
       var locked = m.id > S.unlocked, passed = !!S.passed[m.id], b = S.best[m.id];
@@ -359,6 +358,8 @@
   /* ---------- routing ---------- */
   function route(h) {
     var wasHome = onHome; onHome = false; routeInner(h);
+    var hh = h || location.hash || '#/', pp = hh.split('/');
+    document.body.setAttribute('data-view', pp[1] === 'm' ? 'learn' : pp[1] === 'q' ? 'quiz' : (pp[1] === 'play' && pp[2]) ? 'session' : pp[1] === 'r' ? 'result' : pp[1] === 'badges' ? 'badges' : pp[1] === 'play' ? 'hub' : 'home');
     if (window.CPGame) CPGame.hud();
     if (wasHome && !onHome) markWelcomed();      // the welcome is shown once: it is retired when the learner leaves the home page
   }

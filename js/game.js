@@ -26,7 +26,7 @@
 
   /* ---------- saved state ---------- */
   var G = { xp: 0, streak: 0, best: 0, lastDay: '', day: '', dayXP: 0, goalDay: '', goal: CFG.DAILY_GOAL_XP || 50,
-    srs: {}, badges: {}, mig: 0, prefs: { text: 0, contrast: 0, motion: 0, read: 0, keys: 1, vib: 1, pystyle: 0, timer: 0, warn: 1 }, stats: { quizzes: 0, perfect: 0, reviews: 0, speedBest: 0, matchBest: 0, built: 0, listenOK: 0, toneOK: 0 } };
+    srs: {}, badges: {}, mig: 0, prefs: { text: 0, contrast: 0, motion: 0, read: 0, keys: 1, vib: 1, pystyle: 0, timer: 0, warn: 1, focus: 1 }, stats: { quizzes: 0, perfect: 0, reviews: 0, speedBest: 0, matchBest: 0, built: 0, listenOK: 0, toneOK: 0 } };
   function load() {
     try {
       var j = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -497,6 +497,7 @@
     r.setAttribute('data-text', ['normal', 'large', 'xlarge'][P_.text] || 'normal');
     r.setAttribute('data-contrast', P_.contrast ? 'high' : 'normal');
     r.setAttribute('data-motion', P_.motion ? 'reduce' : 'normal');
+    r.setAttribute('data-focus', P_.focus === 0 ? 'off' : 'on');
   }
   applyPrefs();
 
@@ -508,7 +509,7 @@
     app().openSheet('<h2 id="sheetTitle">Settings</h2><p class="sub">Your choices stay in this browser.</p>' +
       '<fieldset class="goalset"><legend>Daily goal</legend>' + [30, 50, 100].map(function (n) { return '<label><input type="radio" name="goal" value="' + n + '"' + (G.goal === n ? ' checked' : '') + '> ' + n + ' XP' + (n === 30 ? ' (relaxed)' : n === 50 ? ' (steady)' : ' (keen)') + '</label>'; }).join('') + '</fieldset>' +
       '<fieldset class="goalset"><legend>Text size</legend>' + radios('ptext', ['Normal', 'Large', 'Extra large'], G.prefs.text) + '</fieldset>' +
-      '<fieldset class="goalset"><legend>Display</legend><label><input type="checkbox" id="pContrast"' + (G.prefs.contrast ? ' checked' : '') + '> High contrast colours</label><label><input type="checkbox" id="pMotion"' + (G.prefs.motion ? ' checked' : '') + '> Reduce motion and confetti</label></fieldset>' +
+      '<fieldset class="goalset"><legend>Display</legend><label><input type="checkbox" id="pContrast"' + (G.prefs.contrast ? ' checked' : '') + '> High contrast colours</label><label><input type="checkbox" id="pMotion"' + (G.prefs.motion ? ' checked' : '') + '> Reduce motion and confetti</label><label><input type="checkbox" id="pFocus"' + (G.prefs.focus !== 0 ? ' checked' : '') + '> Focus mode: while you learn, hide the progress strip, scores and tips (a screen reader still reads them)</label></fieldset>' +
       '<fieldset class="goalset"><legend>Pinyin style</legend>' + radios('ppy', ['Tone marks, like mā má mǎ mà', 'Tone numbers, like ma1 ma2 ma3 ma4 (easier on braille displays)'], G.prefs.pystyle ? 1 : 0) + '</fieldset>' +
       '<fieldset class="goalset"><legend>Speed round timer</legend>' + radios('ptimer', ['Standard: ' + SPEED_SECS + ' seconds, wrong answers cost 3 seconds', 'Relaxed: ' + (SPEED_SECS * 2) + ' seconds, wrong answers cost no time', 'No timer: take your time, then press Finish round (less XP)'], G.prefs.timer || 0) + '<label><input type="checkbox" id="pWarn"' + (G.prefs.warn !== 0 ? ' checked' : '') + '> Time warnings: announced to screen readers at 30 and 10 seconds, with short beeps for the last 5</label></fieldset>' +
       '<fieldset class="goalset"><legend>Back up your progress</legend><p class="fine">Save your progress to a file to keep it safe or move it to another phone or computer. Loading a file replaces the progress on this device.</p><div class="line"><button type="button" class="btn ghost sm" data-act="exportprog">Save my progress to a file</button></div><label for="progFile">Load progress from a file</label><input type="file" id="progFile" accept=".json,application/json"></fieldset>' +
@@ -548,7 +549,7 @@
     if (act === 'savesettings') {
       var r = document.querySelector('input[name="goal"]:checked'); if (r) G.goal = +r.value;
       var pt = document.querySelector('input[name="ptext"]:checked'); if (pt) G.prefs.text = +pt.value;
-      var pc = document.getElementById('pContrast'), pm = document.getElementById('pMotion'); if (pc) G.prefs.contrast = pc.checked ? 1 : 0; if (pm) G.prefs.motion = pm.checked ? 1 : 0; applyPrefs();
+      var pc = document.getElementById('pContrast'), pm = document.getElementById('pMotion'); if (pc) G.prefs.contrast = pc.checked ? 1 : 0; if (pm) G.prefs.motion = pm.checked ? 1 : 0; var pf = document.getElementById('pFocus'); if (pf) G.prefs.focus = pf.checked ? 1 : 0; applyPrefs();
       var pr = document.getElementById('pRead'), pk = document.getElementById('pKeys'), pv = document.getElementById('pVib'); var ppy = document.querySelector('input[name="ppy"]:checked'), ptm = document.querySelector('input[name="ptimer"]:checked'), pw = document.getElementById('pWarn'); if (ppy) G.prefs.pystyle = +ppy.value; if (ptm) G.prefs.timer = +ptm.value; if (pw) G.prefs.warn = pw.checked ? 1 : 0; if (window.CPAccess) CPAccess.applyStyle();
       if (pr) G.prefs.read = pr.checked ? 1 : 0; if (pk) G.prefs.keys = pk.checked ? 1 : 0; if (pv) G.prefs.vib = pv.checked ? 1 : 0;
       var k = document.getElementById('gKey'); if (k && !k.disabled) { try { if (k.value.trim()) localStorage.setItem('cp.geminiKey', k.value.trim()); else localStorage.removeItem('cp.geminiKey'); } catch (e) {} }

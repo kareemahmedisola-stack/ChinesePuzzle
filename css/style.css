@@ -290,3 +290,48 @@ html[data-contrast="high"] .addr .a1,html[data-contrast="high"] .addr .a2,html[d
 
 kbd{font:700 .85em var(--sans,inherit);padding:.1em .45em;border:1.5px solid var(--line);border-bottom-width:3px;border-radius:6px;background:var(--card,#fff);white-space:nowrap}
 .keys{width:100%;border-collapse:collapse}.keys th,.keys td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}.keys th{width:34%}
+
+/* ================= v12: Focus mode and phone layout =================
+   Focus mode hides extras while you learn (lessons, quizzes, practice games).
+   Everything hidden here is hidden from SIGHT only: it stays in the page, so a screen reader still reads it. */
+html[data-focus="on"] body[data-view="learn"] .hud,
+html[data-focus="on"] body[data-view="quiz"] .hud,
+html[data-focus="on"] body[data-view="session"] .hud{display:none}
+html[data-focus="on"] body[data-view="learn"] .hint,
+html[data-focus="on"] body[data-view="quiz"] .hint,
+html[data-focus="on"] body[data-view="session"] .hint,
+html[data-focus="on"] body[data-view="quiz"] .qtop span:nth-child(2),
+html[data-focus="on"] body[data-view="session"] .pstat,
+html[data-focus="on"] body[data-view="learn"] .pagehead .kicker{
+  position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+html[data-focus="on"] body[data-view="quiz"] .qtop{justify-content:flex-start}
+html[data-focus="on"] body[data-view="learn"] .crumb,
+html[data-focus="on"] body[data-view="quiz"] .dots{margin-bottom:.8rem}
+
+/* phones */
+.opt:active,.tile.open:active,.mode:active,.btn:active{transform:scale(.985)}
+.opt,.tile,.mode,.btn,.py,.hz{-webkit-tap-highlight-color:transparent}
+@media (pointer:coarse){.py,.hz{padding:.2em .06em;line-height:1.9}}
+/* the Next button stays under the thumb after you answer */
+#btnNext{position:sticky;bottom:calc(.7rem + env(safe-area-inset-bottom));z-index:12;min-height:56px;box-shadow:0 6px 18px rgba(0,0,0,.28)}
+@media (max-width:560px){
+  .bar{gap:.1rem;padding-bottom:.25rem}
+  .bar-title{font-size:1rem}
+  .hud{font-size:.85rem;padding-top:0}
+  .hud-b{min-height:36px}
+  main{padding:.9rem .85rem 7.5rem}
+  .addr{font-size:1.9rem;margin-bottom:.35rem}
+  .addr-bar{margin-bottom:.8rem}
+  .cta{margin-bottom:.9rem}
+  .hero{padding:.9rem 1rem}
+  .hero .zh{font-size:2rem}
+  .hero h2{font-size:1.05rem;margin:.3rem 0 .1rem}
+  .meter{margin-top:.6rem}
+  .tile{min-height:68px;padding:.6rem .8rem}
+  .tile .num{font-size:1.9rem}
+  .opt{min-height:60px;font-size:1.08rem}
+  .qtext{font-size:1.3rem}
+  .pagehead h2{font-size:1.45rem}
+  .nav{padding:.5rem .8rem calc(.5rem + env(safe-area-inset-bottom))}
+  .foot .btn{min-height:46px}
+}
